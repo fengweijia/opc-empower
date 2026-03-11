@@ -1,0 +1,36 @@
+{
+  "name": "opc-money-agent-weapp",
+  "version": "1.0.0",
+  "description": "OPC赚钱军师 - 微信小程序",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npm run dev:weapp",
+    "predev:weapp": "node scripts/generate-tabbar-icons.js",
+    "dev:weapp": "NODE_OPTIONS=--openssl-legacy-provider taro build --type weapp --watch",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider taro build --type weapp",
+    "prebuild:weapp": "node scripts/generate-tabbar-icons.js",
+    "build:weapp": "NODE_OPTIONS=--openssl-legacy-provider taro build --type weapp",
+    "build:h5": "NODE_OPTIONS=--openssl-legacy-provider taro build --type h5"
+  },
+  "dependencies": {
+    "@tarojs/components": "3.6.37",
+    "@tarojs/mini-runner": "^3.6.37",
+    "@tarojs/plugin-framework-react": "3.6.37",
+    "@tarojs/plugin-platform-weapp": "3.6.37",
+    "@tarojs/react": "3.6.37",
+    "@tarojs/runtime": "3.6.37",
+    "@tarojs/taro": "3.6.37",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@tarojs/cli": "3.6.37",
+    "babel-preset-taro": "3.6.37",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

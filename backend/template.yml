@@ -1,0 +1,43 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  opc-money-agent:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: 'OPC赚钱军师后端API服务'
+      Policies:
+        - AliyunECSNetworkInterfaceManagementAccess
+        - Version: '1'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'log:PostLogStoreLogs'
+              Resource: '*'
+    opc-api:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.main
+        Runtime: nodejs18
+        CodeUri: ./
+        Timeout: 30
+        MemorySize: 512
+        EnvironmentVariables:
+          NODE_ENV: production
+          LOG_LEVEL: info
+        InstanceConcurrency: 100
+      Events:
+        http:
+          Type: HTTP
+          Properties:
+            AuthType: ANONYMOUS
+            Methods: ['POST', 'GET', 'OPTIONS']
+            Qualifier: LATEST
+  opc-money-agent-log:
+    Type: 'Aliyun::Serverless::Log'
+    Properties:
+      Description: 'OPC赚钱军师日志服务'
+    opc-logstore:
+      Type: 'Aliyun::Serverless::Log::Logstore'
+      Properties:
+        TTL: 30
+        ShardCount: 2

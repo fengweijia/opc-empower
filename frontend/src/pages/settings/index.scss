@@ -1,0 +1,136 @@
+/**
+ * 设置页面样式
+ */
+@import '../../styles/global.scss';
+
+.settings-page {
+  min-height: 100vh;
+  background-color: var(--color-bg-primary);
+  padding-bottom: 200px;
+}
+
+.page-header {
+  padding: var(--spacing-lg);
+  padding-top: calc(var(--spacing-lg) + env(safe-area-inset-top));
+}
+
+.page-title {
+  font-size: var(--font-size-xxl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.settings-content {
+  padding: 0 var(--spacing-lg);
+}
+
+.config-section {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section-icon {
+  font-size: 32px;
+}
+
+.section-info {
+  flex: 1;
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.section-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  display: block;
+}
+
+.section-fields {
+  margin-bottom: var(--spacing-md);
+}
+
+.field-item {
+  margin-bottom: var(--spacing-md);
+}
+
+.field-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.field-input {
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+}
+
+.field-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.field-input:focus {
+  border-color: var(--color-accent);
+}
+
+.section-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.section-actions .btn {
+  flex: 1;
+  font-size: var(--font-size-sm);
+}
+
+.save-section {
+  padding: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+}
+
+.save-tip {
+  display: block;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-md);
+}
+
+.footer-info {
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.version {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.copyright {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

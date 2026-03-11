@@ -1,0 +1,23 @@
+{
+  "name": "opc-money-agent-backend",
+  "version": "1.0.0",
+  "description": "OPC赚钱军师 - Serverless后端API",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "test": "jest",
+    "deploy:aliyun": "fun deploy",
+    "deploy:tencent": "scf deploy"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "OPC赚钱军师团队",
+  "license": "MIT"
+}
