@@ -30,8 +30,8 @@ function responseError(error, code = 500) {
   }
 }
 
-// API处理函数
-exports.main = async (event, context) => {
+// API处理函数 (Serverless 云函数入口)
+const mainHandler = async (event, context) => {
   const { action, params } = event
   
   try {
@@ -199,4 +199,34 @@ exports.main = async (event, context) => {
     console.error('API处理错误:', error)
     return responseError(error)
   }
+}
+
+// 导出供云函数使用
+exports.main = mainHandler;
+
+// 本地开发服务器支持
+if (require.main === module) {
+  const express = require('express');
+  const cors = require('cors');
+  
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: '10mb' }));
+  
+  // 模拟云端路由
+  app.post('/api', async (req, res) => {
+    try {
+      const result = await mainHandler(req.body, {});
+      res.status(result.success ? 200 : (result.code || 500)).json(result);
+    } catch (err) {
+      res.status(500).json(responseError(err));
+    }
+  });
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`✅ OPC赚钱军师 Backend 启动成功!`);
+    console.log(`🔗 API 挂载在: http://localhost:${PORT}/api`);
+    console.log(`📌 提示: 发送 POST 请求到上述地址，请求体格式为 { "action": "xxx", "params": {} }`);
+  });
 }

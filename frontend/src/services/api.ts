@@ -5,7 +5,10 @@
 
 import Taro from '@tarojs/taro'
 
-const API_BASE_URL = 'http://localhost:3000'
+// 统一API前缀配置
+// 本地开发测试可使用 http://localhost:3000/api
+// 云端部署后替换为云函数URL，例如: https://xxx.run.app/api
+const API_BASE_URL = 'http://localhost:3000/api'
 
 class APIService {
   baseUrl: string
