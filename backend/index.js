@@ -213,13 +213,138 @@ if (require.main === module) {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
   
-  // 模拟云端路由
+  // 模拟云端路由 (非流式)
   app.post('/api', async (req, res) => {
     try {
       const result = await mainHandler(req.body, {});
       res.status(result.success ? 200 : (result.code || 500)).json(result);
     } catch (err) {
       res.status(500).json(responseError(err));
+    }
+  });
+
+  // 统一的 Chat 流式接口
+  app.post('/api/chat', async (req, res) => {
+    try {
+      // 提取参数
+      const { messages, config } = req.body;
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: 'messages are required' });
+      }
+
+      // OPC 核心直复式营销 Prompt (降维重塑版)
+      const systemPrompt = `你是一个深谙独立开发者心理的顶级直复式营销专家（AI赚钱军师）。
+你的受众（用户）是一群有技术/硬实力，但极度缺乏销售意识、甚至对“营销”、“割韭菜”感到羞耻的创作者（如资深程序员）。
+
+你的核心任务是：把他们枯燥的产品/技能描述，翻译成能引发共鸣、直接带来咨询的“高逼格社交卡片文案”。
+不要对他们说教！不要用AI陈词滥调（禁止使用“总而言之”、“在这个瞬息万变的时代”、“毫不夸张地说”）。
+
+你的回复必须严格包含两部分（并且必须使用以下 XML 标签包裹）：
+
+<analysis>
+（这部分是你给用户的诊断，语气要一针见血、像懂行的合伙人）
+1. [受众画像] 告诉他这东西最适合卖给哪 3 类人。
+2. [破局点] 为什么他之前卖不出去（痛点），这次该怎么包装。
+</analysis>
+
+<social_card>
+（这部分是前端会渲染成精美分享卡片的内容，语气必须极度自然、克制、像人话）
+[标题]：一个不引人反感、略带自嘲或极客感的好奇心钩子。
+[正文]：
+- 痛点共鸣（说人话，比如“改了20次需求后...”）
+- 你的产品如何优雅地解决它
+- 价值锚点（不一定直接提钱，可以是节省的时间）
+[CTA]：一个非常克制的行动呼吁（例如：“最近整理了一份内测名额，有需要的兄弟扣1我私发你”）。
+</social_card>
+
+记住：在 <social_card> 中的文案，字数必须控制在 150 字以内，多用换行，适当加几个克制的 Emoji（不要满屏都是表情包）。不要在卡片里写“标题：”、“正文：”这种前缀，直接输出纯文本内容！`;
+
+      // 确保第一个 message 是 system prompt
+      const finalMessages = [];
+      if (messages[0]?.role !== 'system') {
+        finalMessages.push({ role: 'system', content: systemPrompt });
+      }
+      finalMessages.push(...messages);
+
+      const aiConfig = config || {};
+      if (!aiConfig.apiKey) {
+        return res.status(400).json({ error: 'API Key is missing' });
+      }
+
+      // 设置 SSE 头
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      // 这里直接调用 openai 兼容的流式接口进行流式返回
+      const provider = aiConfig.provider || 'openai';
+      let endpoint = aiConfig.apiEndpoint || 'https://api.openai.com/v1';
+      
+      if (provider === 'deepseek') endpoint = aiConfig.apiEndpoint || 'https://api.deepseek.com/v1';
+      if (provider === 'siliconflow') endpoint = aiConfig.apiEndpoint || 'https://api.siliconflow.cn/v1';
+      
+      let url = endpoint;
+      if (!url.endsWith('/chat/completions')) {
+        url = url.endsWith('/') ? `${url}chat/completions` : `${url}/chat/completions`;
+      }
+
+      const fetchOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${aiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          model: aiConfig.model || 'gpt-4',
+          messages: finalMessages,
+          temperature: aiConfig.temperature || 0.7,
+          stream: true
+        })
+      };
+
+      // 这里复用 AIService 的 fetchWithRetry 逻辑来处理 429 和 5xx 重试
+      const aiService = new AIService();
+      const response = await aiService.fetchWithRetry(url, fetchOptions);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        res.write(`data: ${JSON.stringify({ error: errorText })}\n\n`);
+        return res.end();
+      }
+
+      // 处理流
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const content = data.choices[0]?.delta?.content || '';
+              if (content) {
+                res.write(`data: ${JSON.stringify({ content })}\n\n`);
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      console.error('Chat API Error:', err);
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
     }
   });
 
