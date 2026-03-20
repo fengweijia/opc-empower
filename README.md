@@ -100,10 +100,10 @@ node test-simple-e2e.js
 - 获取历史记录：`POST / { action: 'getHistory' }`
 
 ### 技术栈
-- 前端：Taro 3.6.37 + React 18 + Zustand + SCSS
-- 后端：Node.js Serverless
-- 数据：飞书多维表格API
-- AI：OpenAI/Claude/DeepSeek/SiliconFlow
+- 前端：Taro 4.0.0 + React 18 + Zustand + SCSS
+- 后端：Node.js Serverless (Express / 云函数兼容)
+- 数据：飞书多维表格 API (支持单表多类型隔离)
+- AI：OpenAI / Claude / DeepSeek / SiliconFlow (内建重试退避与降级解析)
 
 ## 🚀 技术架构
 
@@ -276,28 +276,23 @@ node index.js
 
 ## 📊 开发进度
 
-### 已完成
-- ✅ 项目架构设计
-- ✅ 前端基础框架
-- ✅ 四大Agent页面UI
-- ✅ 全局样式系统
-- ✅ 状态管理store
-- ✅ API服务封装
-- ✅ Agent管理器框架
-- ✅ AI服务多模型支持
-- ✅ 飞书服务封装
+### 已完成 (v1.0 - MVP 闭环)
+- ✅ 项目架构设计与前端基础框架
+- ✅ 前端交互状态矩阵（骨架屏、状态安抚跑马灯、空/错误态）
+- ✅ 定制化 UI 打破 AI Slop（雷达图、30天地铁线路图、7天发售横向 Tab 与手机壳预览）
+- ✅ AI服务契约化：强制 JSON Schema 输出与前端兜底解析
+- ✅ AI服务高可用：超时控制与 429/5xx 退避重试机制
+- ✅ 知识底座与数据闭环：飞书单表多类型存储（history / prompt_version / playbook）
 
-### 进行中
-- 🔄 前后端对接测试
-- 🔄 飞书API权限配置
-- 🔄 Serverless函数部署
-- 🔄 微信小程序审核准备
+### 进行中 (v1.1 - 进化系统与向量增强)
+- 🔄 自动化 PromptOptimizer 与 A/B 测试闭环
+- 🔄 用户反馈（Feedback）的结构化收集与分析
+- 🔄 RAG 向量数据库选型与集成准备
 
 ### 待完成
-- ⏳ 完整端到端测试
-- ⏳ 性能优化
-- ⏳ 错误处理完善
-- ⏳ 用户引导流程
+- ⏳ Serverless 函数的云端生产环境一键部署脚本
+- ⏳ 性能优化与更深度的微信小程序审核适配
+- ⏳ 新手引导（赚钱档案初始化引导流程）
 
 ## 🤝 团队协作
 
