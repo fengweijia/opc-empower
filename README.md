@@ -1,366 +1,76 @@
-# OPC赚钱军师  🐾
+# OPC 赚钱军师 (OPC-Empower) v2.0 Web-First
 
-OPC赚钱军师是一个AI驱动的赚钱助手，帮助OPC（一人公司）创业者生成营销文案、制定赚钱策略、设计成交流程。
+> 一个专为独立开发者、一人公司（OPC）打造的“无羞耻感” AI 营销辅助工具。
 
-> 💡 **OPC** = One Person Company，一人公司
+## 🌟 核心理念 (The Pivot)
 
-## 🎯 项目特点
+在 v1.0 阶段，我们尝试用直复式营销框架（AITDA）去“教”独立开发者如何卖货。但实际测试发现，独立创作者普遍存在**“营销羞耻感”**和极高的**认知负担**。
 
-### 核心设计理念
+因此，v2.0 进行了**全局重构**：
+- **Web-First 架构**：放弃限制极多的小程序，全面转向 Next.js + SSE 流式输出的丝滑 Web 体验。
+- **Zero-Form 极简交互**：没有繁琐的档案填报，上来就是一个像 Claude 一样的统一对话框。
+- **SocialCard (社交卡片)**：把 AI 生成的“微商风”文案，转化为一张极具极客工匠感、带有深色光晕的高颜值分享卡片，一键保存图片，**用设计消解营销羞耻感**。
+- **Vibe Check (氛围调教)**：通过点击按钮一键“去微商味”或“加极客梗”，建立自然的数据迭代飞轮。
 
-- **用户数据自主**：用户数据存储在用户自己的飞书多维表格中
-- **AI成本可控**：用户使用自己的大模型API Key，成本完全透明
-- **直复式营销**：基于AITDA模型的直复式营销方法论
-- **苹果式极简设计**：深色模式 + 赛博工匠感UI
+## 🏗 技术栈
 
-### 四大赚钱Agent
+*   **前端**：Next.js 16 (App Router), React, Tailwind CSS, Framer Motion, html2canvas
+*   **后端**：Node.js, Express, Server-Sent Events (SSE) 流式接口
+*   **AI 引擎**：支持接入 SiliconFlow (DeepSeek-V3) / OpenAI 兼容接口，内置多重防呆正则清洗和重试机制。
 
-1. **赚钱文案Agent** - 朋友圈卖货文案、私聊话术、小红书种草等
-2. **赚钱策略Agent** - 定位、定价、获客、竞品分析
-3. **赚钱流程Agent** - 成交漏斗、发售脚本、自动化流程
-4. **成交转化Agent** - 价格锚定、异议处理、社会证明
+## 🚀 本地快速启动
 
-## 🚀 快速开始
+### 1. 启动后端 (API 服务)
 
-### 前置要求
-
-- Node.js >= 18.0.0
-- npm 或 yarn
-
-### 安装步骤
-
-```bash
-# 1. 克隆项目
-cd /root/.openclaw/workspace/opc001
-
-# 2. 安装前端依赖
-cd frontend
-npm install
-
-# 3. 启动开发服务器
-npm run dev:weapp
-
-# 4. 在微信开发者工具中打开
-# 导入 frontend/dist 目录
-```
-
-### 配置飞书
-
-1. 打开 <https://open.feishu.cn/app>
-2. 创建应用或使用现有应用
-3. 添加权限：
-   - `contact:contact.base:readonly`
-   - `bitable:app`
-   - `sheets:spreadsheet`
-4. 获取App ID和App Secret
-
-### 配置AI
-
-支持的AI提供商：
-
-- OpenAI (GPT-4/GPT-3.5)
-- Anthropic (Claude)
-- DeepSeek
-- 硅基流动 (SiliconFlow)
-
-***
-
-## 📖 使用流程
-
-### 第一次使用
-
-1. 打开小程序 → 进入"我的" → "设置"
-2. 配置飞书信息（App ID、App Secret、多维表格App Token、表格ID）
-3. 连接测试通过后保存
-4. （可选）配置AI API Key
-5. 开始生成赚钱方案！
-
-### 生成文案
-
-1. 首页点击"赚钱文案"
-2. 选择文案类型（如"朋友圈卖货文案"）
-3. 填写产品信息和目标客户
-4. 点击"生成文案"
-5. 复制使用或保存到飞书
-
-***
-
-## 🔧 开发指南
-
-### 后端API测试
+进入 `backend` 目录，安装依赖并启动服务：
 
 ```bash
 cd backend
-
-# 启动测试服务器
-node test-server.js
-
-# 运行端到端测试
-node test-simple-e2e.js
-```
-
-### API端点
-
-- 健康检查：`POST / { action: 'health' }`
-- 获取Agent列表：`POST / { action: 'getAgents' }`
-- 执行Agent：`POST / { action: 'executeAgent' }`
-- 测试飞书连接：`POST / { action: 'testLark' }`
-- 获取历史记录：`POST / { action: 'getHistory' }`
-
-### 技术栈
-
-- 前端：Taro 4.0.0 + React 18 + Zustand + SCSS
-- 后端：Node.js Serverless (Express / 云函数兼容)
-- 数据：飞书多维表格 API (支持单表多类型隔离)
-- AI：OpenAI / Claude / DeepSeek / SiliconFlow (内建重试退避与降级解析)
-
-## 🚀 技术架构
-
-### 前端 (微信小程序)
-
-- **框架**：Taro 4.0.0 + React 18
-- **状态管理**：Zustand
-- **样式**：SCSS + 自定义设计系统
-- **跨端**：支持微信小程序，未来可扩展H5
-
-### 后端 (Serverless)
-
-- **运行时**：Node.js Serverless函数
-- **AI服务**：支持OpenAI/Claude/DeepSeek/SiliconFlow
-- **数据存储**：飞书多维表格API
-- **部署**：阿里云/腾讯云函数计算
-
-### 设计系统
-
-- **主色调**：`#0D0D0D` (纯黑背景) + `#00E5A0` (赚钱绿)
-- **字体**：苹方/SF Pro Display系统字体
-- **圆角**：8px/12px/16px/24px渐进式
-- **动画**：0.15s/0.3s/0.5s三级时长
-
-## 📁 项目结构
-
-```text
-opc-empower/
-├── frontend/                    # 微信小程序前端 (Taro + React)
-│   ├── src/
-│   │   ├── pages/               # 页面组件
-│   │   ├── components/          # 公共组件 (StateFeedback, 等)
-│   │   ├── services/            # API服务
-│   │   ├── store/               # Zustand 状态管理
-│   │   └── styles/              # 全局样式
-│   └── package.json
-│
-├── backend/                     # Serverless后端 (Node.js)
-│   ├── src/
-│   │   ├── agents/              # Agent管理器
-│   │   ├── services/            # AI服务 (含重试退避) / 飞书服务 (多类型支持)
-│   │   ├── evolve/              # 进化反馈分析模块 (A/B测试)
-│   │   └── prompts/             # 独立 Prompt 模板
-│   └── index.js                 # 主入口
-│
-└── docs/                        # 项目文档归档
-    ├── design/                  # 设计规范 (前端设计、AI契约)
-    ├── plans/                   # 开发与执行计划
-    ├── guides/                  # 部署与团队协作指南
-    └── test/                    # QA与测试验证清单
-```
-
-## 🔧 开发环境搭建
-
-### 前端开发
-
-```bash
-# 进入前端目录
-cd frontend
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
-npm run dev:weapp
-
-# 构建生产版本
-npm run build:weapp
-```
-
-### 后端开发
-
-```bash
-# 进入后端目录
-cd backend
-
-# 安装依赖
-npm install
-
-# 本地测试
 node index.js
 ```
+*服务将运行在 `http://localhost:3000`，提供 `/api/chat` 流式接口。*
 
-## 📱 页面功能
+### 2. 启动前端 (Web 界面)
 
-### 首页 (Home)
+打开一个新的终端，进入 `frontend` 目录：
 
-- 今日赚钱洞察
-- 四大Agent快速入口
-- 用户档案概览
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*前端将运行在 `http://localhost:3001`。*
 
-### 赚钱文案 (Copywriting)
+### 3. 配置 API Key
+1. 在浏览器中打开 `http://localhost:3001`。
+2. 点击右上角的 **"API 设置"**。
+3. 输入你的大模型 API Key（默认配置为 SiliconFlow 的 DeepSeek 模型）。
+4. 开始对话体验！
 
-- 朋友圈卖货文案生成
-- 私聊成交话术
-- 小红书种草文案
-- 公众号销售长文
-- 社群发售脚本
-- 文案诊断优化
+## 📁 目录结构
 
-### 赚钱策略 (Strategy)
-
-- 赚钱定位分析
-- 定价策略建议
-- 获客渠道规划
-- 竞品分析报告
-
-### 赚钱流程 (Process)
-
-- 成交漏斗设计
-- 发售脚本生成
-- 自动化流程规划
-- 转介绍系统设计
-
-### 成交转化 (Conversion)
-
-- 价格锚定技巧
-- 异议处理话术
-- 社会证明应用
-- 稀缺紧迫制造
-- 追加销售策略
-
-### 设置 (Settings)
-
-- 飞书API配置
-- 大模型API配置
-- 用户信息配置
-- 连接测试功能
-
-## 🔗 API集成
-
-### 飞书多维表格
-
-- 用户自行创建飞书应用
-- 获取App ID和App Secret
-- 创建多维表格存储数据
-- 数据完全由用户控制
-
-### 大模型API
-
-- 支持OpenAI GPT-4/3.5
-- 支持Claude 3系列
-- 支持DeepSeek国内模型
-- 支持SiliconFlow代理
-- 用户自行配置API Key
-
-## 🎨 设计规范
-
-### 颜色系统
-
-```scss
---color-bg-primary: #0D0D0D      // 纯黑背景
---color-bg-card: #1A1A2E         // 深灰蓝卡片
---color-accent: #00E5A0          // 赚钱绿强调
---color-text-primary: #F5F5F7    // 主要文字
+```
+.
+├── backend/                  # Node.js 后端服务
+│   ├── src/
+│   │   ├── agents/           # 核心 Agent 逻辑
+│   │   └── services/         # AIService (含重试机制), LarkService
+│   └── index.js              # 统一入口，包含 /api/chat SSE 路由
+├── frontend/                 # Next.js 前端应用 (v2.0 新增)
+│   ├── src/
+│   │   ├── app/              # App Router 页面 (包含核心聊天 UI)
+│   │   └── components/       # UI 组件 (SocialCard 社交卡片)
+│   └── tailwind.config.js
+├── frontend_taro_archive/    # (已归档) v1.0 Taro 小程序前端
+└── docs/                     # 项目文档与评审报告
+    ├── design/               # OPCv2.0 架构设计规范
+    └── reviews/              # 工程审计与设计评审报告
 ```
 
-### 间距系统
+## 🎯 10星产品特性演示
 
-```scss
---spacing-xs: 4px
---spacing-sm: 8px
---spacing-md: 16px
---spacing-lg: 24px
---spacing-xl: 32px
-```
-
-### 字体系统
-
-```scss
---font-size-xs: 12px
---font-size-sm: 14px
---font-size-base: 16px
---font-size-lg: 18px
---font-size-xl: 20px
-```
-
-## 📊 开发进度
-
-### 已完成 (v1.0 - MVP 闭环)
-
-- ✅ 项目架构设计与前端基础框架
-- ✅ 前端交互状态矩阵（骨架屏、状态安抚跑马灯、空/错误态）
-- ✅ 定制化 UI 打破 AI Slop（雷达图、30天地铁线路图、7天发售横向 Tab 与手机壳预览）
-- ✅ AI服务契约化：强制 JSON Schema 输出与前端兜底解析
-- ✅ AI服务高可用：超时控制与 429/5xx 退避重试机制
-- ✅ 知识底座与数据闭环：飞书单表多类型存储（history / prompt\_version / playbook）
-
-### 进行中 (v1.1 - 进化系统与向量增强)
-
-- 🔄 自动化 PromptOptimizer 与 A/B 测试闭环
-- 🔄 用户反馈（Feedback）的结构化收集与分析
-- 🔄 RAG 向量数据库选型与集成准备
-
-### 待完成
-
-- ⏳ Serverless 函数的云端生产环境一键部署脚本
-- ⏳ 性能优化与更深度的微信小程序审核适配
-- ⏳ 新手引导（赚钱档案初始化引导流程）
-
-## 🤝 团队协作
-
-### 三线并行开发
-
-1. **产品页面线** (云飞负责) - 前端UI实现
-2. **核心AI线** (智源负责) - Agent功能开发
-3. **配置集成线** (梁枫+皓宇负责) - 后端集成
-
-### 每日站会
-
-- 时间：每天9:00
-- 内容：进度同步、问题解决、任务分配
-
-### 进度汇报
-
-- 频率：每2小时自动汇报
-- 渠道：QQ/飞书消息推送
-- 内容：开发进展、问题风险、下一步计划
-
-## 🚨 注意事项
-
-### 飞书API权限
-
-- 需要管理员授权`contact:contact.base:readonly`权限
-- 授权链接：`https://open.feishu.cn/app/cli_xxxxxxxxxxxxxxxx/auth`
-
-### 微信小程序审核
-
-- 名称可能需要调整（OPC赚钱军师可能受限）
-- 功能描述需要清晰明确
-- 需要提供隐私政策
-
-### 成本控制
-
-- 用户自行承担AI API调用成本
-- 建议使用DeepSeek等成本较低模型
-- 提供用量统计和成本预估
-
-## 📞 联系方式
-
-- **项目负责人**：JJ 🐾
-- **技术架构师**：梁枫
-- **AI工程师**：智源
-- **前端工程师**：云飞
-- **后端工程师**：皓宇
-- **测试工程师**：严谨
-- **产品设计师**：雅芯
-
-***
-
-**让每个OPC都能用AI赚到钱！** 🚀💰
+1. **零输入启动**：在对话框输入“我写了一个帮人自动回复微信的 Python 脚本”。
+2. **洞察分离**：AI 会首先输出 `[军师洞察]` 帮你分析痛点，随后生成 `[SocialCard]`。
+3. **氛围调教 (Vibe Check)**：点击卡片下方的“太像微商了，克制点”，AI 会自动重写卡片。
+4. **一键导出**：点击“存为图片”，直接下载带有精美样式和水印的高清图片，发圈毫无压力。
