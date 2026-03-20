@@ -73,7 +73,7 @@ npm run dev:weapp
 2. 配置飞书信息（App ID、App Secret、多维表格App Token、表格ID）
 3. 连接测试通过后保存
 4. （可选）配置AI API Key
-5. 开始生成文案！
+5. 开始生成赚钱方案！
 
 ### 生成文案
 
@@ -139,39 +139,30 @@ node test-simple-e2e.js
 
 ## 📁 项目结构
 
-```
-opc001/
-├── frontend/                    # 微信小程序前端
+```text
+opc-empower/
+├── frontend/                    # 微信小程序前端 (Taro + React)
 │   ├── src/
-│   │   ├── pages/              # 页面组件
-│   │   │   ├── home/           # 首页
-│   │   │   ├── copywriting/    # 赚钱文案
-│   │   │   ├── strategy/       # 赚钱策略
-│   │   │   ├── process/        # 赚钱流程
-│   │   │   ├── conversion/     # 成交转化
-│   │   │   ├── history/        # 历史记录
-│   │   │   ├── profile/        # 我的页面
-│   │   │   └── settings/       # 设置页面
-│   │   ├── components/         # 公共组件
-│   │   ├── services/           # API服务
-│   │   ├── store/              # 状态管理
-│   │   ├── styles/             # 全局样式
-│   │   └── utils/              # 工具函数
-│   ├── config/                 # Taro配置
+│   │   ├── pages/               # 页面组件
+│   │   ├── components/          # 公共组件 (StateFeedback, 等)
+│   │   ├── services/            # API服务
+│   │   ├── store/               # Zustand 状态管理
+│   │   └── styles/              # 全局样式
 │   └── package.json
 │
-├── backend/                    # Serverless后端
+├── backend/                     # Serverless后端 (Node.js)
 │   ├── src/
-│   │   ├── agents/            # Agent管理器
-│   │   ├── services/          # AI/飞书服务
-│   │   ├── utils/             # 工具函数
-│   │   └── handlers/          # API处理器
-│   └── index.js               # 主入口
+│   │   ├── agents/              # Agent管理器
+│   │   ├── services/            # AI服务 (含重试退避) / 飞书服务 (多类型支持)
+│   │   ├── evolve/              # 进化反馈分析模块 (A/B测试)
+│   │   └── prompts/             # 独立 Prompt 模板
+│   └── index.js                 # 主入口
 │
-└── docs/                      # 项目文档
-    ├── 前端设计规范.md
-    ├── AI功能开发规范.md
-    └── 并行开发计划.md
+└── docs/                        # 项目文档归档
+    ├── design/                  # 设计规范 (前端设计、AI契约)
+    ├── plans/                   # 开发与执行计划
+    ├── guides/                  # 部署与团队协作指南
+    └── test/                    # QA与测试验证清单
 ```
 
 ## 🔧 开发环境搭建
