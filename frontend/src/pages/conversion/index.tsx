@@ -17,18 +17,18 @@ const conversionTypes = [
 ]
 
 export default function ConversionPage() {
-  const [selectedConversion, setSelectedConversion] = useState('')
-  const [conversionResult, setConversionResult] = useState(null)
+  const [selectedConversion, setSelectedConversion] = useState<string>('')
+  const [conversionResult, setConversionResult] = useState<any>(null)
 
   // 选择转化技巧
-  const selectConversion = (conversionId) => {
+  const selectConversion = (conversionId: string) => {
     setSelectedConversion(conversionId)
     
     // 模拟AI生成转化技巧
     Taro.showLoading({ title: 'AI生成中...' })
     
     setTimeout(() => {
-      const mockResults = {
+      const mockResults: any = {
         price_anchor: {
           title: '价格锚定技巧',
           content: `**三锚定价法**：
@@ -78,7 +78,7 @@ export default function ConversionPage() {
         }
       }
       
-      setConversionResult(mockResults[conversionId] || {
+      setConversionResult((mockResults as any)[conversionId] || {
         title: '转化技巧生成中',
         content: 'AI正在为你准备成交技巧...',
         examples: []
@@ -128,7 +128,7 @@ export default function ConversionPage() {
                 {conversionResult?.examples && conversionResult.examples.length > 0 && (
                   <View className="examples-section">
                     <Text className="examples-title">应用示例：</Text>
-                    {conversionResult.examples.map((example, index) => (
+                    {conversionResult.examples.map((example: string, index: number) => (
                       <View key={index} className="example-item">
                         <Text className="example-bullet">•</Text>
                         <Text className="example-text">{example}</Text>
@@ -138,8 +138,18 @@ export default function ConversionPage() {
                 )}
                 
                 <View className="result-actions">
-                  <View className="btn btn-primary">生成完整话术</View>
-                  <View className="btn btn-secondary">模拟对话练习</View>
+                  <View
+                    className="btn btn-primary"
+                    onClick={() => Taro.showToast({ title: '功能开发中', icon: 'none' })}
+                  >
+                    生成完整话术
+                  </View>
+                  <View
+                    className="btn btn-secondary"
+                    onClick={() => Taro.showToast({ title: '功能开发中', icon: 'none' })}
+                  >
+                    模拟对话练习
+                  </View>
                 </View>
               </View>
               

@@ -3,116 +3,176 @@
  * 设计成交漏斗、发售脚本等自动化流程
  * 2026-03-11: 小白优化 - 对接后端Agent 3 API
  */
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Button } from '@tarojs/components'
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
+import { LoadingSkeleton, ErrorState, EmptyState } from '../../components/StateFeedback'
 import apiService from '../../services/api'
+import useAppStore from '../../store'
 import './index.scss'
-
-// 获取用户配置
-const getUserConfig = () => {
-  try {
-    return {
-      product: Taro.getStorageSync('opc_product') || '我的产品',
-      targetAudience: Taro.getStorageSync('opc_target_audience') || '目标客户',
-      price: Taro.getStorageSync('opc_price') || '99',
-      aiConfig: {
-        provider: Taro.getStorageSync('opc_ai_provider'),
-        apiKey: Taro.getStorageSync('opc_ai_api_key'),
-        model: Taro.getStorageSync('opc_ai_model')
-      }
-    }
-  } catch (e) {
-    return { product: '我的产品', targetAudience: '目标客户', price: '99', aiConfig: {} }
-  }
-}
 
 // 流程类型
 const processTypes = [
   { id: 'funnel_design', name: '成交漏斗', icon: '🔄', desc: '设计自动成交路径' },
-  { id: 'launch_script', name: '发售脚本', icon: '📜', desc: '7天完整发售节奏' },
+  { id: 'launch_script', name: '7天发售加速器', icon: '📜', desc: '7天完整发售节奏' },
   { id: 'automation', name: '自动化流程', icon: '⚙️', desc: '让机器帮你赚钱' },
   { id: 'referral', name: '转介绍系统', icon: '🤝', desc: '让客户帮你拉客户' }
 ]
 
 export default function ProcessPage() {
-  const [selectedProcess, setSelectedProcess] = useState('')
-  const [processResult, setProcessResult] = useState(null)
+  const [selectedProcess, setSelectedProcess] = useState<string>('')
+  const [processResult, setProcessResult] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [activeDay, setActiveDay] = useState(0) // 用于7天发售的横向Tab
+
+  const { config, addToHistory } = useAppStore()
 
   // 选择流程类型 - 调用后端Agent 3 API
-  const selectProcess = async (processId) => {
+  const selectProcess = async (processId: string) => {
     setSelectedProcess(processId)
-    Taro.showLoading({ title: 'AI设计中...' })
+    setIsLoading(true)
+    setErrorMsg('')
+    setActiveDay(0)
     
     try {
-      const userConfig = getUserConfig()
-      
-      // 调用后端Agent 3 API
+      if (!config.ai.apiKey) {
+        throw new Error('请先在设置中配置AI API Key')
+      }
+      if (!config.user.product || !config.user.targetAudience) {
+        throw new Error('请先在设置中填写“我要卖的产品/服务”和“目标客户”')
+      }
+
       const result = await apiService.executeAgent({
         agentType: 'process',
         skillType: processId,
-        params: {
-          product: userConfig.product,
-          targetAudience: userConfig.targetAudience,
-          price: userConfig.price,
-          channel: '自媒体',
-          ...userConfig.aiConfig
+        config: {
+          aiConfig: {
+            provider: config.ai.provider,
+            apiKey: config.ai.apiKey,
+            apiEndpoint: config.ai.apiEndpoint,
+            model: config.ai.model
+          },
+          larkConfig: config.lark.appId ? config.lark : null
+        },
+        userParams: {
+          userId: config.user.userId,
+          product: config.user.product,
+          targetAudience: config.user.targetAudience,
+          price: '99',
+          channel: '自媒体'
         }
       })
       
-      // 格式化返回数据
-      const formattedResult = formatAgent3Result(processId, result)
-      setProcessResult(formattedResult)
-    } catch (error) {
-      console.error('Agent 3 API调用失败:', error)
-      // 回退到本地mock数据
-      setProcessResult({
-        title: processId === 'funnel_design' ? '成交漏斗设计' : 
-               processId === 'launch_script' ? '7天发售脚本' :
-               processId === 'automation' ? '自动化流程' : '转介绍系统',
-        content: 'AI正在为你设计赚钱流程...\n\n（当前使用模拟数据，配置AI API后可获得完整方案）',
-        steps: ['配置AI API获取完整方案']
+      if (!result.success) {
+         throw new Error(result.message || '生成失败')
+      }
+
+      const payload = result.data
+      setProcessResult({ skillType: processId, data: payload })
+
+      addToHistory({
+        id: `gen_${Date.now()}`,
+        agentType: 'process',
+        skillType: processId,
+        inputParams: {
+          product: config.user.product,
+          targetAudience: config.user.targetAudience,
+          price: '99',
+          channel: '自媒体'
+        },
+        outputContent: result,
+        generatedAt: new Date().toISOString(),
+        strategyTags: ['成交流程', '发售']
       })
+    } catch (error: any) {
+      console.error('Agent 3 API调用失败:', error)
+      setErrorMsg(error.message || '生成失败，请重试')
+    } finally {
+      setIsLoading(false)
     }
-    
-    Taro.hideLoading()
   }
 
-  // 格式化Agent 3返回结果
-  const formatAgent3Result = (skillType, data) => {
-    if (skillType === 'funnel_design') {
-      const layers = data.layers || []
-      return {
-        title: '成交漏斗设计',
-        content: layers.map(l => `**${l.name}**\n${l.description}\n脚本：${l.script}`).join('\n\n'),
-        steps: layers.flatMap(l => l.tactics?.map(t => t.name) || [])
-      }
+  // 渲染7天发售界面
+  const renderLaunchScript = (data: any) => {
+    if (!data || !data.schedule || !Array.isArray(data.schedule)) {
+       return <Text className="fallback-text">{typeof data === 'string' ? data : JSON.stringify(data)}</Text>
     }
-    if (skillType === 'launch_script') {
-      const schedule = data.schedule || []
-      return {
-        title: '7天发售脚本',
-        content: schedule.map(d => `**Day${d.day} ${d.theme}**\n${d.content?.Moments?.join('\n') || ''}`).join('\n\n'),
-        steps: schedule.map(d => `Day${d.day}: ${d.theme}`)
-      }
-    }
-    if (skillType === 'automation') {
-      const content = data.content || []
-      return {
-        title: '自动化流程',
-        content: content.map(c => `**${c.name}**\n${c.template || ''}`).join('\n\n'),
-        steps: content.map(c => c.name)
-      }
-    }
-    if (skillType === 'referral') {
-      const mechanics = data.mechanics || []
-      return {
-        title: '转介绍系统',
-        content: mechanics.map(m => `**${m.name}**\n${m.description}`).join('\n\n'),
-        steps: mechanics.map(m => m.name)
-      }
-    }
-    return { title: '流程设计', content: JSON.stringify(data, null, 2), steps: [] }
+    
+    const schedule = data.schedule
+    if (schedule.length === 0) return null
+
+    const currentDayData = schedule[activeDay] || schedule[0]
+
+    return (
+      <View className="launch-container">
+         <ScrollView scrollX className="days-tab">
+            <View className="days-tab-inner">
+               {schedule.map((d: any, idx: number) => (
+                 <View 
+                   key={idx} 
+                   className={`day-item ${activeDay === idx ? 'active' : ''}`}
+                   onClick={() => setActiveDay(idx)}
+                 >
+                   <Text className="day-name">Day {d.day}</Text>
+                   <Text className="day-theme">{d.theme}</Text>
+                 </View>
+               ))}
+            </View>
+         </ScrollView>
+
+         <View className="phone-preview">
+            <View className="phone-header">
+               <Text>发售内容预览</Text>
+            </View>
+            <ScrollView scrollY className="phone-content">
+               {currentDayData.content?.Moments && currentDayData.content.Moments.length > 0 && (
+                 <View className="content-block">
+                    <Text className="block-title">朋友圈素材</Text>
+                    {currentDayData.content.Moments.map((m: string, i: number) => (
+                       <View key={i} className="moment-card">
+                         <Text>{m}</Text>
+                         <View className="action-row">
+                            <Text className="copy-btn" onClick={() => Taro.setClipboardData({data: m})}>[一键复制]</Text>
+                         </View>
+                       </View>
+                    ))}
+                 </View>
+               )}
+               
+               {currentDayData.content?.Community && (
+                 <View className="content-block">
+                    <Text className="block-title">社群SOP</Text>
+                    <View className="chat-bubble">
+                       <Text>{currentDayData.content.Community}</Text>
+                       <View className="action-row">
+                          <Text className="copy-btn" onClick={() => Taro.setClipboardData({data: currentDayData.content.Community})}>[一键复制]</Text>
+                       </View>
+                    </View>
+                 </View>
+               )}
+            </ScrollView>
+            <View className="phone-footer">
+               <Button className="done-btn">标记本阶段完成</Button>
+            </View>
+         </View>
+      </View>
+    )
+  }
+
+  const renderContent = () => {
+     if (!processResult) return null;
+     if (processResult.skillType === 'launch_script') {
+        return renderLaunchScript(processResult.data)
+     }
+     // 其他类型暂用兜底文本展示
+     return (
+       <View className="result-card">
+          <Text className="result-content fallback-text">
+             {typeof processResult.data === 'string' ? processResult.data : JSON.stringify(processResult.data, null, 2)}
+          </Text>
+       </View>
+     )
   }
 
   return (
@@ -146,38 +206,26 @@ export default function ProcessPage() {
         ) : (
           <View className="process-result">
             <ScrollView scrollY className="result-scroll">
-              <View className="result-card">
-                <Text className="result-title">{processResult?.title}</Text>
-                <Text className="result-content">
-                  {processResult?.content}
-                </Text>
-                
-                {processResult?.steps && processResult.steps.length > 0 && (
-                  <View className="steps-section">
-                    <Text className="steps-title">执行步骤：</Text>
-                    {processResult.steps.map((step, index) => (
-                      <View key={index} className="step-item">
-                        <Text className="step-number">{index + 1}</Text>
-                        <Text className="step-text">{step}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                
-                <View className="result-actions">
-                  <View className="btn btn-primary">生成详细方案</View>
-                  <View className="btn btn-secondary">保存到飞书</View>
-                </View>
-              </View>
+              {isLoading ? (
+                <LoadingSkeleton messages={['加载发售模板...', '定制朋友圈文案...', '生成社群SOP...']} />
+              ) : errorMsg ? (
+                <ErrorState message={errorMsg} onRetry={() => selectProcess(selectedProcess)} />
+              ) : !processResult ? (
+                <EmptyState onAction={() => selectProcess(selectedProcess)} />
+              ) : (
+                renderContent()
+              )}
               
-              <View className="back-section">
-                <View 
-                  className="btn btn-secondary"
-                  onClick={() => setSelectedProcess('')}
-                >
-                  返回选择
+              {!isLoading && (
+                <View className="back-section">
+                  <View 
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedProcess('')}
+                  >
+                    返回选择
+                  </View>
                 </View>
-              </View>
+              )}
             </ScrollView>
           </View>
         )}

@@ -3,7 +3,7 @@
  * 核心AI功能：首个开发的赚钱Agent
  */
 import { View, Text, ScrollView, Textarea } from '@tarojs/components'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import useAppStore from '../../store'
 import apiService from '../../services/api'
@@ -42,30 +42,133 @@ const mockResult = [
 ]
 
 export default function CopywritingPage() {
+  const { config, addToHistory, setLoading, setError } = useAppStore()
+
   const [step, setStep] = useState(1) // 1:选择类型  2:填写信息  3:生成结果
   const [copyType, setCopyType] = useState('')
   const [productInfo, setProductInfo] = useState({
-    product: '',
-    targetAudience: '',
+    product: config.user.product || '',
+    targetAudience: config.user.targetAudience || '',
     price: '',
     objective: '',
     style: ''
   })
-  const [results, setResults] = useState([])
+  const [results, setResults] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   
-  // 使用store
-  const { config, addToHistory, setLoading, setError } = useAppStore()
+  useEffect(() => {
+    setProductInfo((prev: any) => ({
+      ...prev,
+      product: prev.product || config.user.product || '',
+      targetAudience: prev.targetAudience || config.user.targetAudience || ''
+    }))
+  }, [config.user.product, config.user.targetAudience])
+
+  const tryParseJsonFromText = (text: string) => {
+    const trimmed = (text || '').trim()
+    if (!trimmed) return null
+
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
+    const candidate = (fenced?.[1] || trimmed).trim()
+
+    const tryParse = (s: string) => {
+      try {
+        return JSON.parse(s)
+      } catch (_) {
+        return null
+      }
+    }
+
+    if (candidate.startsWith('{') || candidate.startsWith('[')) {
+      const parsed = tryParse(candidate)
+      if (parsed) return parsed
+    }
+
+    const firstObj = candidate.indexOf('{')
+    const lastObj = candidate.lastIndexOf('}')
+    if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+      const parsed = tryParse(candidate.slice(firstObj, lastObj + 1))
+      if (parsed) return parsed
+    }
+
+    const firstArr = candidate.indexOf('[')
+    const lastArr = candidate.lastIndexOf(']')
+    if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+      const parsed = tryParse(candidate.slice(firstArr, lastArr + 1))
+      if (parsed) return parsed
+    }
+
+    return null
+  }
+
+  const normalizeResultItem = (item: any, index: number) => {
+    if (typeof item === 'string') {
+      return { index: index + 1, title: `文案${index + 1}`, content: item, strategy_analysis: '' }
+    }
+
+    if (!item || typeof item !== 'object') return null
+
+    const title = (item.title || item.name || `文案${index + 1}`).toString()
+    const rawContent = item.content ?? item.text ?? item.body ?? item.copy ?? item.output ?? ''
+    const rawAnalysis = item.strategy_analysis ?? item.strategy ?? item.analysis ?? ''
+
+    const content =
+      typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)
+    const strategy_analysis =
+      typeof rawAnalysis === 'string' ? rawAnalysis : JSON.stringify(rawAnalysis, null, 2)
+
+    return {
+      index: typeof item.index === 'number' ? item.index : index + 1,
+      title,
+      content,
+      strategy_analysis
+    }
+  }
+
+  const normalizeResults = (raw: any) => {
+    let candidate: any = raw
+    while (
+      candidate &&
+      typeof candidate === 'object' &&
+      'data' in candidate &&
+      (candidate.success === true || 'format' in candidate || 'isMock' in candidate)
+    ) {
+      candidate = (candidate as any).data
+    }
+
+    if (typeof candidate === 'string') {
+      const parsed = tryParseJsonFromText(candidate)
+      if (parsed) candidate = parsed
+    }
+
+    if (Array.isArray(candidate)) {
+      return candidate
+        .map((it, idx) => normalizeResultItem(it, idx))
+        .filter((x) => Boolean(x))
+    }
+
+    if (candidate && typeof candidate === 'object') {
+      const one = normalizeResultItem(candidate, 0)
+      if (one) return [one]
+      return [{ index: 1, title: '生成结果', content: JSON.stringify(candidate, null, 2), strategy_analysis: '' }]
+    }
+
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return [{ index: 1, title: '生成结果', content: candidate, strategy_analysis: '' }]
+    }
+
+    return []
+  }
 
   // 选择文案类型
-  const selectType = (type) => {
+  const selectType = (type: { id: string }) => {
     setCopyType(type.id)
     setStep(2)
   }
 
   // 填写产品信息
-  const handleInputChange = (field, value) => {
-    setProductInfo(prev => ({
+  const handleInputChange = (field: string, value: string) => {
+    setProductInfo((prev: any) => ({
       ...prev,
       [field]: value
     }))
@@ -115,6 +218,11 @@ export default function CopywritingPage() {
         }
       })
 
+      const normalized = normalizeResults(result)
+      if (!normalized.length) {
+        throw new Error('生成结果为空，请稍后重试')
+      }
+
       // 保存到历史记录
       const record = {
         id: `gen_${Date.now()}`,
@@ -127,12 +235,12 @@ export default function CopywritingPage() {
       }
       
       addToHistory(record)
-      setResults(result.data || result)
+      setResults(normalized)
       setStep(3)
       setCurrentIndex(0)
       
       Taro.showToast({ title: '生成成功', icon: 'success' })
-    } catch (error) {
+    } catch (error: any) {
       console.error('生成文案失败:', error)
       setError(error.message)
       Taro.showToast({
@@ -151,7 +259,7 @@ export default function CopywritingPage() {
   }
 
   // 复制文案
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text: string) => {
     Taro.setClipboardData({
       data: text,
       success: () => {
@@ -262,8 +370,26 @@ export default function CopywritingPage() {
 
   // 渲染步骤3：生成结果
   const renderStep3 = () => {
-    const current = results[currentIndex]
+    const current: any = results[currentIndex]
     
+    if (!current) {
+      return (
+        <View className="result-view">
+          <View className="result-card">
+            <Text className="result-title">暂无生成结果</Text>
+            <View className="result-actions">
+              <View className="btn btn-secondary" onClick={goBack}>
+                返回
+              </View>
+              <View className="btn btn-primary" onClick={generateCopy}>
+                重新生成
+              </View>
+            </View>
+          </View>
+        </View>
+      )
+    }
+
     return (
       <View className="result-view">
         <ScrollView scrollY className="results-scroll">
@@ -285,14 +411,21 @@ export default function CopywritingPage() {
             <View className="result-actions">
               <View 
                 className="btn btn-primary"
-                onClick={() => copyToClipboard(current.content)}
+                onClick={() => copyToClipboard((current.content || '').toString())}
               >
                 复制文案
               </View>
-              <View className="btn btn-secondary">
+              <View className="btn btn-secondary" onClick={generateCopy}>
                 换一版
               </View>
-              <View className="btn btn-text">
+              <View
+                className="btn btn-text"
+                onClick={() =>
+                  results.length <= 1
+                    ? Taro.showToast({ title: '只有一条结果', icon: 'none' })
+                    : setCurrentIndex((prev: number) => (prev + 1) % results.length)
+                }
+              >
                 下一条 →
               </View>
             </View>

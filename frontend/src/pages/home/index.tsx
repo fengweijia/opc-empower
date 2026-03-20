@@ -55,7 +55,7 @@ export default function HomePage() {
   })
 
   // 跳转功能模块
-  const navigateToModule = (module) => {
+  const navigateToModule = (module: { path: string }) => {
     Taro.navigateTo({
       url: module.path
     })
@@ -102,8 +102,18 @@ export default function HomePage() {
             {Insight.content}
           </Text>
           <View className="insight-actions">
-            <View className="btn btn-primary">{Insight.actions[0].text}</View>
-            <View className="btn btn-secondary">{Insight.actions[1].text}</View>
+            <View
+              className="btn btn-primary"
+              onClick={() => Taro.navigateTo({ url: '/pages/process/index' })}
+            >
+              {Insight.actions[0].text}
+            </View>
+            <View
+              className="btn btn-secondary"
+              onClick={() => Taro.showToast({ title: '功能开发中', icon: 'none' })}
+            >
+              {Insight.actions[1].text}
+            </View>
           </View>
         </View>
 

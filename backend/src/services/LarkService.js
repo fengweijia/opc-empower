@@ -162,16 +162,39 @@ class LarkService {
       generatedAt: record.generatedAt || new Date().toISOString()
     }
     
+    // 支持多类型记录 (playbook/prompt/history/feedback)
+    const recordType = record.recordType || 'history'
+    
+    // 为了防止字段长度超限，将内容做安全截断或转换为字符串
+    const contentStr = JSON.stringify(fullContent)
+    const safeContent = contentStr.length > 50000 ? contentStr.substring(0, 50000) + '...(truncated)' : contentStr
+
     const fields = {
       'OPC赚钱军师数据存储': record.recordId || `gen_${Date.now()}`, // 主键字段
+      '记录类型': recordType,
       '用户ID': record.userId,
       'Agent类型': record.agentType,
       'Skill类型': record.skillType,
-      '生成内容': JSON.stringify(fullContent),
-      '策略标签': record.strategyTags || []
+      '生成内容': safeContent,
+      '策略标签': record.strategyTags || [],
+      'Prompt版本': record.promptVersion || 'default'
     }
 
     return await this.createRecord(fields)
+  }
+
+  // 针对 prompt/playbook 等配置型数据的缓存机制
+  async getConfigRecord(type, skillType = null) {
+     // TODO: 可以在类内部加一个基于时间的 memory cache
+     let filterStr = `Filter(字段"记录类型"="${type}")`
+     if (skillType) {
+         filterStr = `Filter(AND(字段"记录类型"="${type}", 字段"Skill类型"="${skillType}"))`
+     }
+     const res = await this.queryRecords(filterStr, 1)
+     if (res && res.items && res.items.length > 0) {
+         return res.items[0]
+     }
+     return null
   }
 }
 

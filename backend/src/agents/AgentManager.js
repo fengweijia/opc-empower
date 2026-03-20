@@ -66,7 +66,7 @@ class AgentManager {
     try {
       const prompt = this.buildCopywritingPrompt(skillType, params)
       const response = await aiService.generate(prompt, params.aiConfig)
-      return this.formatCopywritingResponse(response, skillType)
+      return this.formatProcessResponse(response, skillType)
     } catch (error) {
       console.error('AI生成失败，使用模拟数据:', error.message)
       return this.getMockCopywritingResponse(skillType, params)
@@ -81,19 +81,24 @@ class AgentManager {
     
     if (!promptTemplate) {
       console.log(`[Warning] Prompt模板 ${skillType} 不存在，使用默认模板`);
-      promptTemplate = copywritingPrompts.default || '请生成适合的内容';
+      promptTemplate = copywritingPrompts.default || '请生成适合的内容。请必须输出合法的JSON格式。';
     }
     
-    // 替换模板变量
-    let prompt = promptTemplate
-      .replace(/\{\{product\}\}/g, params.product || '待填写')
-      .replace(/\{\{targetAudience\}\}/g, params.targetAudience || '待填写')
-      .replace(/\{\{price\}\}/g, params.price || '待填写')
-      .replace(/\{\{objective\}\}/g, params.objective || '直接成交')
-      .replace(/\{\{style\}\}/g, params.style || '口语化自然')
-      .replace(/\{\{customerStage\}\}/g, params.customerStage || '陌生')
-      .replace(/\{\{days\}\}/g, params.days || '7')
-      .replace(/\{\{copy\}\}/g, params.copy || '');
+    // 强制追加JSON契约
+    if (!promptTemplate.includes('输出JSON') && !promptTemplate.includes('JSON格式')) {
+       promptTemplate += '\n\n【系统指令】请务必仅输出合法的 JSON 格式数据，不要包含任何额外的解释性文本或 Markdown 代码块标记（如 ```json）。'
+    } else {
+       promptTemplate += '\n\n【系统指令】确保输出的是纯正的、可解析的 JSON 字符串，禁止包裹在 ```json 中。'
+    }
+
+    // 动态正则替换
+    let prompt = promptTemplate.replace(/\{\{\s*(\w+)(?:\s*\|\|\s*([^}]+))?\s*\}\}/g, (match, key, defaultValue) => {
+       const val = params[key];
+       if (val !== undefined && val !== null && val !== '') {
+           return val;
+       }
+       return defaultValue !== undefined ? defaultValue.trim() : '待填写';
+    });
     
     return prompt;
   }
@@ -130,11 +135,12 @@ class AgentManager {
     }
   }
 
-  // 格式化文案响应
-  formatCopywritingResponse(rawResponse, skillType) {
+  // 格式化流程/策略响应并提供兜底
+  formatProcessResponse(rawResponse, skillType) {
     try {
-      // 尝试解析JSON
-      const content = JSON.parse(rawResponse)
+      // 清理可能包含的 Markdown 代码块
+      const cleanJson = rawResponse.replace(/```json\s*|\s*```/g, '').trim()
+      const content = JSON.parse(cleanJson)
       return {
         success: true,
         data: content,
@@ -142,20 +148,66 @@ class AgentManager {
         isMock: false
       }
     } catch (e) {
-      // 如果不是JSON，直接返回文本
+      console.error('JSON解析失败，尝试返回文本兜底:', e.message)
+      // 如果不是JSON，提供格式化后的文本兜底
       return {
         success: true,
         data: rawResponse,
         format: 'text',
-        isMock: false
+        isMock: false,
+        message: '生成内容非标准JSON格式，已降级为纯文本显示'
       }
     }
   }
 
   // 处理策略请求
   async handleStrategyRequest(skillType, params, aiService) {
-    // 类似文案处理
-    return { success: true, data: '策略生成功能开发中...' }
+    // 如果没有配置AI，返回模拟数据
+    if (!params.aiConfig || !params.aiConfig.apiKey) {
+      console.log('使用模拟数据（未配置AI API）')
+      return this.getMockStrategyResponse(skillType, params)
+    }
+    
+    try {
+      const prompt = this.buildProcessPrompt(skillType, params)
+      const response = await aiService.generate(prompt, params.aiConfig)
+      return this.formatProcessResponse(response, skillType)
+    } catch (error) {
+      console.error('AI生成失败，使用模拟数据:', error.message)
+      return this.getMockStrategyResponse(skillType, params)
+    }
+  }
+
+  // 获取模拟策略响应
+  getMockStrategyResponse(skillType, params) {
+    const mockData = {
+      positioning: {
+        analysis: {
+          core_competence: ['技术研发能力', '工具使用效率', '逻辑思维'],
+          market_match: 4,
+          feasibility: 5
+        },
+        positioning_statement: '用程序员的效率杠杆，为自媒体人提供提效工具，做“送水人”。',
+        paths: [
+          { name: '路径A: 提效工具售卖', description: '将日常使用的高效脚本打包成工具或SaaS售卖。' },
+          { name: '路径B: 技术代工服务', description: '为自媒体大V提供爬虫、数据分析等技术外包服务。' },
+          { name: '路径C: 效率课程培训', description: '教非技术人员如何使用AI和自动化工具提效。' }
+        ],
+        roadmap_30_days: [
+          { week: 'Week 1', phase: '基建', tasks: ['梳理现有工具', '包装产品卖点'] },
+          { week: 'Week 2', phase: '种子', tasks: ['寻找前3个内测用户', '收集反馈优化'] },
+          { week: 'Week 3', phase: '预热', tasks: ['在朋友圈/社群分享工具效果', '制造期待'] },
+          { week: 'Week 4', phase: '转化', tasks: ['正式发售', '限时优惠成交'] }
+        ]
+      }
+    };
+    return {
+      success: true,
+      data: mockData[skillType] || mockData.positioning,
+      format: 'json',
+      isMock: true,
+      message: '使用模拟数据（配置AI API后可使用真实生成）'
+    }
   }
 
   // 处理流程请求 (2026-03-11 小白实现Agent 3)
@@ -176,33 +228,30 @@ class AgentManager {
     }
   }
 
-  // 构建流程prompt
+  // 构建流程prompt（安全渲染机制）
   buildProcessPrompt(skillType, params) {
     let promptTemplate = strategyProcessPrompts[skillType]
     
     if (!promptTemplate) {
       console.log(`[Warning] Process prompt ${skillType} 不存在，使用默认模板`)
-      promptTemplate = '请生成适合的流程策略内容'
+      promptTemplate = '请生成适合的流程策略内容。请必须输出合法的JSON格式。'
     }
     
-    // 替换模板变量
-    let prompt = promptTemplate
-      .replace(/\{\{product\}\}/g, params.product || '待填写')
-      .replace(/\{\{targetAudience\}\}/g, params.targetAudience || '待填写')
-      .replace(/\{\{price\}\}/g, params.price || '待填写')
-      .replace(/\{\{niche\}\}/g, params.niche || '待填写')
-      .replace(/\{\{currentStatus\}\}/g, params.currentStatus || '待填写')
-      .replace(/\{\{strengths\}\}/g, params.strengths || '待填写')
-      .replace(/\{\{challenges\}\}/g, params.challenges || '待填写')
-      .replace(/\{\{cost\}\}/g, params.cost || '待填写')
-      .replace(/\{\{existingChannels\}\}/g, params.existingChannels || '待填写')
-      .replace(/\{\{channel\}\}/g, params.channel || '待填写')
-      .replace(/\{\{competitorUrl\}\}/g, params.competitorUrl || '待填写')
-      .replace(/\{\{competitorName\}\}/g, params.competitorName || '待填写')
-      .replace(/\{\{days\}\}/g, params.days || '7')
-      .replace(/\{\{basePrice\}\}/g, params.basePrice || '待填写')
-      .replace(/\{\{upsellProduct\}\}/g, params.upsellProduct || '待填写')
-      .replace(/\{\{existingProduct\}\}/g, params.existingProduct || '待填写')
+    // 强制追加JSON契约（防 AI Slop 与解析失败）
+    if (!promptTemplate.includes('输出JSON')) {
+       promptTemplate += '\n\n【系统指令】请务必仅输出合法的 JSON 格式数据，不要包含任何额外的解释性文本或 Markdown 代码块标记（如 ```json）。'
+    } else {
+       promptTemplate += '\n\n【系统指令】确保输出的是纯正的、可解析的 JSON 字符串，禁止包裹在 ```json 中。'
+    }
+
+    // 动态正则替换（替代之前写死的替换列表，提升DRY）
+    let prompt = promptTemplate.replace(/\{\{\s*(\w+)(?:\s*\|\|\s*([^}]+))?\s*\}\}/g, (match, key, defaultValue) => {
+       const val = params[key];
+       if (val !== undefined && val !== null && val !== '') {
+           return val;
+       }
+       return defaultValue !== undefined ? defaultValue.trim() : '待填写';
+    });
     
     return prompt
   }

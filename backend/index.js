@@ -66,19 +66,48 @@ exports.main = async (event, context) => {
           throw new Error('缺少AI配置，请先在设置中配置API Key')
         }
 
-        // 1. 调用AI服务生成内容
+        // 1. 获取动态配置（知识底座与Prompt版本），并将其合并到参数中
+        const larkConfig = (config && config.larkConfig) || null
+        let promptVersion = 'default'
+        
+        if (larkConfig && larkConfig.appId) {
+          try {
+            const larkService = new LarkService(larkConfig)
+            // 尝试获取最新的 prompt_version
+            const promptConfig = await larkService.getConfigRecord('prompt_version', skillType)
+            if (promptConfig && promptConfig.fields) {
+               const content = promptConfig.fields['生成内容']
+               if (content) {
+                  try {
+                    const parsed = JSON.parse(content)
+                    if (parsed.version) {
+                       promptVersion = parsed.version
+                       // 也可以在这里将远程拉取的 prompt template 注入给 userParams 供 AgentManager 使用
+                       // userParams.remotePromptTemplate = parsed.template
+                    }
+                  } catch(e) {
+                    console.warn('解析飞书配置的Prompt版本失败', e)
+                  }
+               }
+            }
+          } catch (err) {
+             console.warn('获取飞书动态配置失败，降级使用本地默认配置', err)
+          }
+        }
+
+        // 2. 调用AI服务生成内容
         const aiResult = await agentManager.processRequest(
           agentType, 
           skillType, 
           {
             ...(userParams || {}),
-            aiConfig
+            aiConfig,
+            promptVersion
           },
           aiService
         )
 
-        // 2. 如果用户配置了飞书，保存到用户的多维表格
-        const larkConfig = (config && config.larkConfig) || null
+        // 3. 如果用户配置了飞书，保存到用户的多维表格
         if (larkConfig && larkConfig.appId) {
           try {
             const larkService = new LarkService(larkConfig)
@@ -88,6 +117,7 @@ exports.main = async (event, context) => {
               skillType,
               inputParams: userParams,
               outputContent: aiResult,
+              promptVersion,
               generatedAt: new Date().toISOString()
             })
           } catch (larkError) {

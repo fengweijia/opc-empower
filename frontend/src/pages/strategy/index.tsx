@@ -2,82 +2,128 @@
  * 赚钱策略页面
  * 提供赚钱定位、定价、获客等策略建议
  */
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Button } from '@tarojs/components'
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
+import { LoadingSkeleton, ErrorState, EmptyState } from '../../components/StateFeedback'
+import apiService from '../../services/api'
+import useAppStore from '../../store'
 import './index.scss'
 
 // 策略类型
 const strategyTypes = [
-  { id: 'positioning', name: '赚钱定位', icon: '🎯', desc: '找到你的独特卖点' },
+  { id: 'positioning', name: '定位诊断', icon: '🎯', desc: '雷达图与30天启动路径' },
   { id: 'pricing', name: '定价策略', icon: '💰', desc: '让客户觉得超值' },
   { id: 'channel', name: '获客渠道', icon: '📢', desc: '找到最便宜的流量' },
   { id: 'competitor', name: '竞品分析', icon: '🔍', desc: '找到你的蓝海机会' }
 ]
 
 export default function StrategyPage() {
-  const [selectedStrategy, setSelectedStrategy] = useState('')
-  const [strategyResult, setStrategyResult] = useState(null)
+  const [selectedStrategy, setSelectedStrategy] = useState<string>('')
+  const [strategyResult, setStrategyResult] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // 选择策略类型
-  const selectStrategy = (strategyId) => {
+  const { config, addToHistory } = useAppStore()
+
+  // 调用真实后端接口获取策略
+  const selectStrategy = async (strategyId: string) => {
     setSelectedStrategy(strategyId)
+    setIsLoading(true)
+    setError('')
     
-    // 模拟AI生成策略
-    Taro.showLoading({ title: 'AI分析中...' })
-    
-    setTimeout(() => {
-      const mockResults = {
-        positioning: {
-          title: '赚钱定位分析',
-          content: `基于你的产品信息，我建议的定位策略：
-
-1. **价值定位**：不是卖"Python自动化课程"，而是卖"每天多出2小时自由时间"
-2. **人群定位**：不是"想学Python的人"，而是"月薪5-8k的运营，每天被重复工作折磨"
-3. **场景定位**：不是"学编程"，而是"用Python解放双手，带薪摸鱼"
-
-**差异化卖点**：
-- 别人教Python语法，你教"如何用Python让老板以为你在加班"
-- 别人讲理论，你讲"15分钟自动化8小时工作"`,
-          actions: ['生成定位文案', '查看案例', '保存策略']
-        },
-        pricing: {
-          title: '定价策略建议',
-          content: `你的产品适合**阶梯定价**：
-
-**基础版**：199元
-- 核心自动化脚本
-- 社群答疑
-- 适合尝鲜用户
-
-**进阶版**：499元
-- 基础版全部
-- 1对1诊断
-- 定制脚本
-- 适合想快速见效的用户
-
-**企业版**：1999元
-- 进阶版全部
-- 团队培训
-- 源码授权
-- 适合小团队
-
-**定价心理学**：
-- 199元：心理账户门槛低
-- 499元：对比199元显得超值
-- 1999元：锚定效应，让499元看起来更划算`,
-          actions: ['生成价格页', '计算ROI', '保存策略']
-        }
+    try {
+      if (!config.ai.apiKey) {
+        throw new Error('请先在设置中配置AI API Key')
       }
-      
-      setStrategyResult(mockResults[strategyId] || {
-        title: '策略生成中',
-        content: 'AI正在分析你的情况...',
-        actions: []
+      if (!config.user.product || !config.user.targetAudience) {
+        throw new Error('请先在设置中填写“我要卖的产品/服务”和“目标客户”')
+      }
+
+      const res = await apiService.executeAgent({
+         agentType: 'strategy',
+         skillType: strategyId,
+         config: {
+           aiConfig: {
+             provider: config.ai.provider,
+             apiKey: config.ai.apiKey,
+             apiEndpoint: config.ai.apiEndpoint,
+             model: config.ai.model
+           },
+           larkConfig: config.lark.appId ? config.lark : null
+         },
+         userParams: {
+           userId: config.user.userId,
+           product: config.user.product,
+           targetAudience: config.user.targetAudience,
+           price: '99',
+           channel: '自媒体'
+         }
       })
-      
-      Taro.hideLoading()
-    }, 1500)
+      if (res.success) {
+         setStrategyResult(res.data)
+         addToHistory({
+           id: `gen_${Date.now()}`,
+           agentType: 'strategy',
+           skillType: strategyId,
+           inputParams: {
+             product: config.user.product,
+             targetAudience: config.user.targetAudience,
+             price: '99',
+             channel: '自媒体'
+           },
+           outputContent: res,
+           generatedAt: new Date().toISOString(),
+           strategyTags: ['定位诊断', '赚钱路径']
+         })
+      } else {
+         setError(res.message || '生成失败，请重试')
+      }
+    } catch (err: any) {
+      setError(err.message || '网络或接口错误')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 渲染雷达图占位
+  const renderRadar = (analysis: any) => {
+    if (!analysis) return null;
+    return (
+      <View className="radar-container">
+        <Text className="radar-title">核心竞争力诊断雷达</Text>
+        <View className="radar-mock">
+           <Text>市场匹配度: {analysis.market_match || 0}/5</Text>
+           <Text>可行性: {analysis.feasibility || 0}/5</Text>
+           <Text>优势: {(analysis.core_competence || []).join(', ')}</Text>
+        </View>
+      </View>
+    )
+  }
+
+  // 渲染30天路径
+  const renderRoadmap = (roadmap: any[]) => {
+    if (!roadmap || !roadmap.length) return null;
+    return (
+      <View className="roadmap-container">
+        <Text className="roadmap-title">30天赚钱路径</Text>
+        <View className="timeline">
+          {roadmap.map((step, idx) => (
+             <View className="timeline-item" key={idx}>
+                <View className="timeline-dot" />
+                <View className="timeline-content">
+                   <Text className="timeline-week">{step.week} ({step.phase})</Text>
+                   <View className="timeline-tasks">
+                     {(step.tasks || []).map((t: string, i: number) => (
+                       <Text key={i} className="task-item">• {t}</Text>
+                     ))}
+                   </View>
+                </View>
+             </View>
+          ))}
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -111,31 +157,43 @@ export default function StrategyPage() {
         ) : (
           <View className="strategy-result">
             <ScrollView scrollY className="result-scroll">
-              <View className="result-card">
-                <Text className="result-title">{strategyResult?.title}</Text>
-                <Text className="result-content">
-                  {strategyResult?.content}
-                </Text>
-                
-                {strategyResult?.actions && strategyResult.actions.length > 0 && (
-                  <View className="result-actions">
-                    {strategyResult.actions.map((action, index) => (
-                      <View key={index} className="btn btn-primary">
-                        {action}
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-              
-              <View className="back-section">
-                <View 
-                  className="btn btn-secondary"
-                  onClick={() => setSelectedStrategy('')}
-                >
-                  返回选择
+              {isLoading ? (
+                <LoadingSkeleton messages={['正在分析你的能力圈...', '匹配最佳赚钱路径...', '生成30天路线图...']} />
+              ) : error ? (
+                <ErrorState message={error} onRetry={() => selectStrategy(selectedStrategy)} />
+              ) : !strategyResult ? (
+                <EmptyState onAction={() => selectStrategy(selectedStrategy)} />
+              ) : (
+                <View className="result-card">
+                  {strategyResult.positioning_statement && (
+                    <View className="positioning-quote">
+                      <Text className="quote-mark">"</Text>
+                      <Text className="quote-text">{strategyResult.positioning_statement}</Text>
+                      <Text className="quote-mark">"</Text>
+                    </View>
+                  )}
+                  
+                  {renderRadar(strategyResult.analysis)}
+                  
+                  {renderRoadmap(strategyResult.roadmap_30_days)}
+                  
+                  {/* 兼容非JSON格式或纯文本兜底 */}
+                  {typeof strategyResult === 'string' && (
+                     <Text className="result-content fallback-text">{strategyResult}</Text>
+                  )}
                 </View>
-              </View>
+              )}
+              
+              {!isLoading && (
+                <View className="back-section">
+                  <View 
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedStrategy('')}
+                  >
+                    返回选择
+                  </View>
+                </View>
+              )}
             </ScrollView>
           </View>
         )}
